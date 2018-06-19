@@ -1,7 +1,6 @@
 import sqlite3
 from flask_restful import Resource, reqparse
 from flask_jwt import jwt_required
-from models.item import ItemModel
 
 
 # functions that handle working with specific items
@@ -18,9 +17,47 @@ class Item(Resource):
         type=float
     )
 
+    @classmethod
+    def find_by_item_id(cls, item_id):
+        connection = sqlite3.connect('data.db')
+        # item = next(filter(lambda x: x['item_id'] == item_id, items), None)
+        connection = sqlite3.connect('data.db')
+        cursor = connection.cursor()
+
+        query = "SELECT * FROM items where item_id=?"
+        result = cursor.execute(query, (item_id,))
+
+        row = result.fetchone()
+        connection.close()
+
+        if row:
+            return {"item_id": row[0], "name": row[1], "price": row[2]}
+
+    @classmethod
+    def insert_item(cls, new_item):
+            connection = sqlite3.connect('data.db')
+            cursor = connection.cursor()
+
+            query = "INSERT INTO items VALUES (?, ?, ?)"
+            cursor.execute(query, (new_item['item_id'], new_item['name'], new_item['price']))
+
+            connection.commit()
+            connection.close()
+
+    @classmethod
+    def update_item(cls, updated_item):
+            connection = sqlite3.connect('data.db')
+            cursor = connection.cursor()
+
+            query = "UPDATE items SET name=?, price=? WHERE item_id=?"
+            cursor.execute(query, (updated_item['name'], updated_item['price'], updated_item['item_id']))
+
+            connection.commit()
+            connection.close()
+
     # @jwt_required()
     def get(self, item_id):
-        item = ItemModel.find_by_item_id(item_id)
+        item = self.find_by_item_id(item_id)
 
         if item:
             return item
@@ -30,7 +67,7 @@ class Item(Resource):
 
     @jwt_required()
     def put(self, item_id):
-        item = ItemModel.find_by_item_id(item_id)
+        item = self.find_by_item_id(item_id)
         if item:
             data = Item.parser.parse_args()
             updated_item = {
@@ -39,7 +76,7 @@ class Item(Resource):
                 "price": data['price']
             }
             try:
-                ItemModel.update_item(updated_item)
+                self.update_item(updated_item)
             except():
                 return {
                     "message": "An error occurred when trying to insert the item."
@@ -55,7 +92,7 @@ class Item(Resource):
 
     @jwt_required()
     def delete(self, item_id):
-        if ItemModel.find_by_item_id(item_id):
+        if self.find_by_item_id(item_id):
             connection = sqlite3.connect('data.db')
             cursor = connection.cursor()
 
